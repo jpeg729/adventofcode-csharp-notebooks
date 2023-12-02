@@ -1,0 +1,269 @@
+#!meta
+
+{"kernelInfo":{"defaultKernelName":"csharp","items":[{"aliases":[],"name":"csharp"}]}}
+
+#!csharp
+
+#r "nuget: AngleSharp, 1.0.7"
+using AngleSharp;
+using AngleSharp.Dom;
+using AngleSharp.Html.Dom;
+using AngleSharp.Html.Parser;
+using Microsoft.AspNetCore.Html;
+using Microsoft.DotNet.Interactive.Formatting;
+using static Microsoft.DotNet.Interactive.Formatting.PocketViewTags;
+using System;
+using System.IO;
+using System.Net.Http;
+
+#!csharp
+
+#nullable enable
+record Part {
+    public string? Answer { get; set; }
+    public string? Title { get; init; }
+    public required IHtmlContent Description { get; init; }
+    public string? ExampleInput { get; set; } 
+    public string? ExampleAnswer { get; set; }
+
+    public void Update(Part part) {
+        Answer = part.Answer;
+    }
+}
+class Problem {
+    public int Year { get; init; }
+    public int Day { get; init; }
+
+    public Part? Part1 { get; private set; }
+    public Part? Part2 { get; private set; }
+
+    private readonly HttpClient _httpClient;
+    private string? _input;
+
+    public Problem(int year, int day) {
+        Year = year;
+        Day = day;
+
+        _httpClient = new HttpClient();
+        _httpClient.BaseAddress = new Uri("https://adventofcode.com/");
+        _httpClient.DefaultRequestHeaders.Add("Cookie", $"session={Environment.GetEnvironmentVariable("AOC_SESSION_COOKIE")}");
+    }
+
+    public async Task<IHtmlContent> Load() {
+        var problemReleaseDate = new DateTime(Year, 12, Day, 5, 0, 0, DateTimeKind.Utc);
+        var wait = problemReleaseDate - DateTime.UtcNow;
+        if (wait.TotalSeconds > 0) {
+            var waitString = "";
+            if (wait.TotalDays > 1) waitString = $"{wait:%d} days, ";
+            if (wait.TotalHours > 1) waitString += $"{wait:%h} hours, ";
+            if (wait.TotalMinutes > 1) waitString += $"{wait:%m} minutes, ";
+            if (wait.TotalSeconds > 1) waitString += $"{wait:%s} seconds";
+            return div(
+                h2($"{Year} day {Day}"),
+                p($"This problem is available in {waitString}")
+            );
+        }
+        if (wait.TotalMilliseconds > 0) await Task.Delay(wait);
+
+        var parts = await ReadProblem();
+        Part1 = parts[0];
+        if (parts.Count > 1) Part2 = parts[1];
+
+        _input = await ReadInput();
+
+        var yellowStar = "⭐";
+        var greyStar = "☆";
+        var stars = (Part1?.Answer != null ? yellowStar : greyStar) + (Part2?.Answer != null ? yellowStar : greyStar);
+        return div(
+            h2($"{Year} day {Day} ", stars),
+            h3(Part1.Title),
+            Part1.Answer == null ? p("Not answered yet") : p("Answer: ", code(Part1.Answer)),
+            h3(Part2?.Title ?? "--- Part 2 ---"),
+            Part2?.Answer == null ? p("Not answered yet") : p("Answer: ", code(Part2.Answer))
+        );
+    }
+
+    public IHtmlContent ShowPart1() {
+        if (Part1 == null) {
+            return h3("Part 1 is not available yet");
+        } 
+        return ShowPart(Part1!);
+    }
+
+    public IHtmlContent ShowPart2() {
+        if (Part2 == null) {
+            return h3("Part 2 is not available yet");
+        } 
+        return ShowPart(Part2!);
+    }
+
+    private IHtmlContent ShowPart(Part part) {
+        var which = part == Part1 ? "Part1" : "Part2";
+        if (part!.ExampleAnswer != null && part.ExampleInput != null) {
+            return div(
+                part.Description,
+                hr(),
+                dl(
+                    dt($"problem.{which}.ExampleInput ", em[style:"opacity:0.6"]("if this is incorrect you can assign a new value or null to skip it")),
+                    dd(pre(code(part.ExampleInput)))
+                ),
+                dl(
+                    dt($"problem.{which}.ExampleAnswer ", em[style:"opacity:0.6"]("if this is incorrect you can assign a new value or null to skip it")),
+                    dd(pre(code(part.ExampleAnswer)))
+                )
+            );
+        }
+        else {
+            return part!.Description;
+        }
+    }
+
+    public async Task<IHtmlContent> VerifyPart1<TAnswer>(Func<string, TAnswer> solution) {
+        if (Part1 == null) {
+            return h3("Part 1 is not available yet");
+        } 
+        return VerifyExample(Part1!, solution)
+            ?? VerifyStoredAnswer(Part1!, solution)
+            ?? await SubmitAnswer(Part1!, solution);
+    }
+
+    public async Task<IHtmlContent> VerifyPart2<TAnswer>(Func<string, TAnswer> solution) {
+        if (Part2 == null) {
+            return h3("Part 2 is not available yet");
+        } 
+        return VerifyExample(Part2!, solution)
+            ?? VerifyStoredAnswer(Part2!, solution)
+            ?? await SubmitAnswer(Part2!, solution);
+    }
+
+    private IHtmlContent? VerifyExample<TAnswer>(Part part, Func<string, TAnswer> solution) {
+        if (part!.ExampleAnswer != null && part.ExampleInput != null) {
+            var answer = solution(part.ExampleInput)!.ToString();
+            if (answer != part.ExampleAnswer) {
+                return WrongAnswer("example", answer, part.ExampleAnswer!);
+            }
+        }
+        return null;
+    }
+
+    private IHtmlContent? VerifyStoredAnswer<TAnswer>(Part part, Func<string, TAnswer> solution) {
+        if (part!.Answer != null) {
+            var answer = solution(_input!)!.ToString();
+            return AnswerExplanation("locally stored answer", answer, part.Answer);
+        }
+        return null;
+    }
+
+    private async Task<IHtmlContent> SubmitAnswer<TAnswer>(Part part, Func<string, TAnswer> solution) {
+        var answer = solution(_input!)!.ToString();
+        await SubmitAnswer(1, answer!);
+        return AnswerExplanation("aoc website", answer, part.Answer!);
+    }
+
+    private IHtmlContent AnswerExplanation(string phase, string? yourAnswer, string correctAnswer) {
+        if (yourAnswer != correctAnswer) {
+            return WrongAnswer(phase, yourAnswer, correctAnswer);
+        }
+        else {
+            return div(
+                h3("Correct Answer according to the ", em(phase)),
+                p("Congratulations!")
+            );
+        }
+    }
+
+    private IHtmlContent WrongAnswer(string phase, string? yourAnswer, string correctAnswer) {
+        return div(
+            h3("Wrong Answer"),
+            p("Your answer was: ", code(yourAnswer)),
+            p("The ", em(phase), " answer is: ", code(correctAnswer))
+        );
+    }
+
+    private async Task<List<Part>> ReadProblem() {
+        var folder = "Problems";
+        var filename = $"{Year}-{Day}.html";
+        var fullPath = Path.Combine(folder, filename);
+        if (!Path.Exists(folder)) Directory.CreateDirectory(folder);
+        if (File.Exists(fullPath)) {
+            return await ParseProblem(File.ReadAllText(fullPath));
+        }
+        var content = await _httpClient.GetStringAsync($"/{Year}/day/{Day}");
+        File.WriteAllText(fullPath, content);
+        return await ParseProblem(content);
+    }
+
+    private async Task<string> ReadInput() {
+        var folder = "Problems";
+        var filename = $"{Year}-{Day}.txt";
+        var fullPath = Path.Combine(folder, filename);
+        if (!Path.Exists(folder)) Directory.CreateDirectory(folder);
+        if (File.Exists(fullPath)) {
+            return File.ReadAllText(fullPath);
+        }
+        var response = await _httpClient.GetAsync($"{Year}/day/{Day}/input");
+        var data = await response.Content.ReadAsStringAsync();
+        File.WriteAllText(fullPath, data);
+        return data;
+    }
+
+    private async Task SubmitAnswer(int part, string answer) {
+        var requestContent = new StringContent($"level={part}&answer={answer}");
+        var response = await _httpClient.PostAsync($"{Year}/day/{Day}/answer", requestContent);
+        var content = await response.Content.ReadAsStringAsync();
+
+        var folder = "Problems";
+        var filename = $"{Year}-{Day}.html";
+        var fullPath = Path.Combine(folder, filename);
+        if (!Path.Exists(folder)) Directory.CreateDirectory(folder);
+        File.WriteAllText(fullPath, content);
+        
+        var parts = await ParseProblem(content);
+        Part1!.Update(parts[0]);
+        if (parts.Count > 1) {
+            if (Part2 != null) Part2.Update(parts[1]);
+            else Part2 = parts[1];
+        } 
+    }
+
+    private async Task<List<Part>> ParseProblem(string content) {
+        var parser = new HtmlParser();
+        var document = await parser.ParseDocumentAsync(content);
+        var parts = new List<Part>();
+        foreach (var article in document.QuerySelectorAll("article.day-desc")) {
+            var title = article.QuerySelector("h2")?.TextContent;
+
+            var sample = article.QuerySelector("pre > code")?.TextContent;
+            var sampleAnswer = article.QuerySelectorAll("code").LastOrDefault()?.TextContent;
+            
+            // to get the answer first we need to find the answer node
+            // which seems to always be in a <p> tag immediately following the <article> tag
+            // This code keeps searching the siblings until it finds a <p> tag with a <code> tag inside
+            // but we probably only need to skip text nodes.
+            var answerNode = article.NextSibling; 
+            while (answerNode != null && !( 
+                answerNode.NodeName == "P" 
+                && (answerNode as IElement)?.QuerySelector("code") != null 
+                && answerNode.TextContent.Contains("answer"))
+            ) {
+                answerNode = answerNode.NextSibling as IElement;
+            }
+            var answer = (answerNode as IElement)?.QuerySelector("code")?.TextContent;
+            
+            var description = new HtmlContentBuilder();
+            description.AppendHtml(article.OuterHtml);
+
+            parts.Add(new Part {
+                Answer = answer, 
+                Title = title, 
+                Description = description,
+                ExampleInput = sample,
+                ExampleAnswer = sampleAnswer
+            });
+        }
+        if (parts.Count > 1 && parts[1].ExampleInput == null) {
+            parts[1].ExampleInput = parts[0].ExampleInput;
+        }
+        return parts;
+    }
+}

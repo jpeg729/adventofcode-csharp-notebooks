@@ -1,0 +1,37 @@
+#!meta
+
+{"kernelInfo":{"defaultKernelName":"csharp","items":[{"aliases":[],"name":"csharp"}]}}
+
+#!csharp
+
+#!import Api.dib
+
+#!csharp
+
+var problem = new Problem(2023,19);
+await problem.Load()
+
+#!csharp
+
+problem.ShowPart1()
+
+#!csharp
+
+// If the detected example is wrong, override it here. Or to ignore it, set one or both to null.
+// problem.Part1.ExampleInput = "Something else";
+// problem.Part1.ExampleAnswer = "Something else";
+var part1 = (string input) =>{
+    return 14;
+};
+await problem.VerifyPart1(part1)
+
+#!csharp
+
+problem.ShowPart2()
+
+#!csharp
+
+var part2 = (string input) =>{
+    return 14;
+};
+await problem.VerifyPart2(part2)
