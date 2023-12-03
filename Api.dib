@@ -52,7 +52,7 @@ class Problem {
     public async Task<IHtmlContent> Load() {
         var problemReleaseDate = new DateTime(Year, 12, Day, 5, 0, 0, DateTimeKind.Utc);
         var wait = problemReleaseDate - DateTime.UtcNow;
-        if (wait.TotalSeconds > 0) {
+        if (wait.TotalSeconds > 3) {
             var waitString = "";
             if (wait.TotalDays > 1) waitString = $"{wait:%d} days, ";
             if (wait.TotalHours > 1) waitString += $"{wait:%h} hours, ";
@@ -63,7 +63,7 @@ class Problem {
                 p($"This problem is available in {waitString}")
             );
         }
-        if (wait.TotalMilliseconds > 0) await Task.Delay(wait);
+        if (wait.TotalSeconds > 0) await Task.Delay(wait);
 
         var parts = await ReadProblem();
         Part1 = parts[0];
