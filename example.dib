@@ -21,7 +21,7 @@ problem.ShowPart1()
 // problem.Part1.ExampleInput = "Something else";
 // problem.Part1.ExampleAnswer = "Something else";
 var part1 = (string input) =>{
-    return 14;
+    return -1;
 };
 await problem.VerifyPart1(part1)
 
@@ -31,7 +31,7 @@ problem.ShowPart2()
 
 #!csharp
 
-var part2 = (string input) =>{
-    return 14;
+var part2 = (string input) => {
+    return -1;
 };
 await problem.VerifyPart2(part2)

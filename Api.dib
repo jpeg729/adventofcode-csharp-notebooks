@@ -10,8 +10,12 @@ using AngleSharp.Dom;
 using AngleSharp.Html.Dom;
 using AngleSharp.Html.Parser;
 using Microsoft.AspNetCore.Html;
+
+// this is not necessary at runtime, but at the time of writing 
+// the intellisense doesn't recognize the methods without it
 using Microsoft.DotNet.Interactive.Formatting;
 using static Microsoft.DotNet.Interactive.Formatting.PocketViewTags;
+
 using System;
 using System.IO;
 using System.Net.Http;
@@ -76,7 +80,7 @@ class Problem {
         var stars = (Part1?.Answer != null ? yellowStar : greyStar) + (Part2?.Answer != null ? yellowStar : greyStar);
         return div(
             h2($"{Year} day {Day} ", stars),
-            h3(Part1.Title),
+            h3(Part1!.Title),
             Part1.Answer == null ? p("Not answered yet") : p("Answer: ", code(Part1.Answer)),
             h3(Part2?.Title ?? "--- Part 2 ---"),
             Part2?.Answer == null ? p("Not answered yet") : p("Answer: ", code(Part2.Answer))
@@ -180,12 +184,12 @@ class Problem {
         );
     }
 
-    private async Task<List<Part>> ReadProblem() {
+    private async Task<List<Part>> ReadProblem(bool force = false) {
         var folder = "Problems";
         var filename = $"{Year}-{Day}.html";
         var fullPath = Path.Combine(folder, filename);
         if (!Path.Exists(folder)) Directory.CreateDirectory(folder);
-        if (File.Exists(fullPath)) {
+        if (!force && File.Exists(fullPath)) {
             return await ParseProblem(File.ReadAllText(fullPath));
         }
         var content = await _httpClient.GetStringAsync($"/{Year}/day/{Day}");
@@ -211,14 +215,13 @@ class Problem {
         var requestContent = new StringContent($"level={part}&answer={answer}");
         var response = await _httpClient.PostAsync($"{Year}/day/{Day}/answer", requestContent);
         var content = await response.Content.ReadAsStringAsync();
-
-        var folder = "Problems";
-        var filename = $"{Year}-{Day}.html";
-        var fullPath = Path.Combine(folder, filename);
-        if (!Path.Exists(folder)) Directory.CreateDirectory(folder);
-        File.WriteAllText(fullPath, content);
         
-        var parts = await ParseProblem(content);
+        var parser = new HtmlParser();
+        var document = await parser.ParseDocumentAsync(content);
+        var article = document.QuerySelector("article");
+        display(HTML(article?.OuterHtml));
+
+        var parts = await ReadProblem(force:true);
         Part1!.Update(parts[0]);
         if (parts.Count > 1) {
             if (Part2 != null) Part2.Update(parts[1]);
@@ -236,27 +239,20 @@ class Problem {
             var sample = article.QuerySelector("pre > code")?.TextContent;
             var sampleAnswer = article.QuerySelectorAll("code").LastOrDefault()?.TextContent;
             
-            // to get the answer first we need to find the answer node
-            // which seems to always be in a <p> tag immediately following the <article> tag
-            // This code keeps searching the siblings until it finds a <p> tag with a <code> tag inside
-            // but we probably only need to skip text nodes.
+            // The answer node seems to always be a <p> tag immediately following the <article> tag
+            // It contains a <code> tag with the answer
             var answerNode = article.NextSibling; 
-            while (answerNode != null && !( 
-                answerNode.NodeName == "P" 
-                && (answerNode as IElement)?.QuerySelector("code") != null 
-                && answerNode.TextContent.Contains("answer"))
+            while (answerNode != null 
+                && answerNode.NodeName == "#text"
             ) {
                 answerNode = answerNode.NextSibling as IElement;
             }
             var answer = (answerNode as IElement)?.QuerySelector("code")?.TextContent;
             
-            var description = new HtmlContentBuilder();
-            description.AppendHtml(article.OuterHtml);
-
             parts.Add(new Part {
                 Answer = answer, 
                 Title = title, 
-                Description = description,
+                Description = HTML(article.OuterHtml),
                 ExampleInput = sample,
                 ExampleAnswer = sampleAnswer
             });
