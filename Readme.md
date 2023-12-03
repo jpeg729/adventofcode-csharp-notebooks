@@ -13,7 +13,7 @@ The provided Api can read the problem and the input data from the website, and s
 5. Open one of the 2023-x.dib files and run it
 6. Enjoy
 
-## Working on a problem
+## The structure of a {year}-{day}.dib file
 
 ### First import the Api library.
 
