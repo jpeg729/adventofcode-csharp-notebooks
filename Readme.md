@@ -1,4 +1,4 @@
-# My setup for Advent of code problems
+# My setup for [Advent of code](https://adventofcode.com/) problems
 
 A simple setup using Polyglot Notebooks in VSCode.
 
@@ -6,7 +6,7 @@ The provided Api can read the problem and the input data from the website, and s
 
 ## Getting started
 
-1. Add an environment variable called AOC_SESSION_COOKIE containing your adventofcode session cookie.
+1. Add an environment variable called AOC_SESSION_COOKIE containing your Advent of Code session cookie.
 2. Open this folder with VSCode
 3. Install the extension for Polyglot Notebooks https://marketplace.visualstudio.com/items?itemName=ms-dotnettools.dotnet-interactive-vscode
 4. Update it to the preview version (necessary in early December in order to use the latest C# features)
@@ -15,35 +15,34 @@ The provided Api can read the problem and the input data from the website, and s
 
 ## Working on a problem
 
-### First we import the Api library.
+### First import the Api library.
 
 ```
 #!import Api.dib
 ```
 
-### Then we initialise and load the problem. 
+### Then initialise and load the problem. 
 
 ```csharp
 var problem = new Problem(2022,8);
 await problem.Load();
 ```
 
-This downloads the problem description and input from adventofcode.com
-and stores local copies in the Problems folder.
+This downloads the problem description and input from https://adventofcode.com/{year}/day/{day} and stores local copies in the Problems folder.
 
 **N.B.** If you manually submit a solution you will have to delete the file `Problems/{year}-{day}.html` in order to refresh your answers.
 
-**N.B.** If you switch your access token for one from another account, you will need to delete the file `Problems/{year}-{day}.txt` in order to download the correct input for the new account.
+**N.B.** If you switch your access token from one account to another, you will need to delete the files in the `Problems` folder in order to download the correct summaries and inputs for the new account.
 
-If the problem is not yet available, the server is not contacted in order to avoid spamming it. If there are only a few minutes left, the `Load` method will count down and download the files as soon as it is available.
+If the problem is not yet available, the server is not contacted in order to avoid spamming it. If there are only a few minutes left, the `Load` method will count down and download the files as soon as they are available.
 
 * `problem.Input` gives access to the full input
-* `problem.Part1` gives access the first part
 * `problem.Part1.ExampleInput` gives access the example input for the first part
 * `problem.Part1.ExampleAnswer` gives access the example answer for the first part
 * `problem.Part1.Answer` gives access to the previously submitted answer to the first part
+* etc.
 
-### Then we display the first part. 
+### Then display the description of the first part
 
 ```csharp
 problem.ShowPart1();
@@ -51,7 +50,7 @@ problem.ShowPart1();
 
 If the example data and answer are easily identifiable in the text, they are shown separately.
 
-### Then we implement and submit the code for the first part.
+### Then implement and submit the code for the first part
 
 ```csharp
 int Part1(string input) {
@@ -60,15 +59,17 @@ int Part1(string input) {
 await problem.VerifyPart1(Part1);
 ```
 
-The call to VerifyPart1 does the following in order:
+The call to VerifyPart1 does the following:
 
-1. If the example data and answer were identified, it tests that your code against the example. If it fails, it stops.
-2. If the html summary mentions any previously submitted answers, it tests your code against the submitted answer.
-3. If the html summary does not mention any previously submitted answers, it submits the result of your code, and downloads the summary again.
+- It tests that your code against the example, if the example is not null.
+  
+  If this step fails, it goes no further.
 
-**N.B.** Part1 does not have to return an int, anything with a ToString method will work.
+- It runs your code against the full data, and either compares the result to the previously submitted answer if there is one, or submits the result and downloads the summary again.
 
-### Then we can proceed to part 2.
+**N.B.** Part1 does not have to return an int, anything with a ToString method can work.
+
+### Then proceed to part 2
 
 ```csharp
 problem.ShowPart2();
