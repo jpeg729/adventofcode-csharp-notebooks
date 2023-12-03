@@ -1,4 +1,4 @@
-# This is a description of the html format used for the site Advent of code
+# This is a description of the html format used on the site Advent of code
 
 The interesting stuff is inside the `<main>` element.
 The two parts are in `<article>` elements.

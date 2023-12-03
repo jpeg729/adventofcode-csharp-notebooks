@@ -9,29 +9,29 @@
 #!csharp
 
 var problem = new Problem(2022,8);
-await problem.Load()
+await problem.Load();
 
 #!csharp
 
-problem.ShowPart1()
+problem.ShowPart1();
 
 #!csharp
 
 // If the detected example is wrong, override it here. Or to ignore it, set one or both to null.
 // problem.Part1.ExampleInput = "Something else";
 // problem.Part1.ExampleAnswer = "Something else";
-var part1 = (string input) =>{
+int Part1(string input) {
     return -1;
-};
-await problem.VerifyPart1(part1)
+}
+await problem.VerifyPart1(Part1);
 
 #!csharp
 
-problem.ShowPart2()
+problem.ShowPart2();
 
 #!csharp
 
-var part2 = (string input) => {
+int Part2(string input) {
     return -1;
-};
-await problem.VerifyPart2(part2)
+}
+await problem.VerifyPart2(Part2);

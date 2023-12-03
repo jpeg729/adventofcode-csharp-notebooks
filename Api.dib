@@ -11,7 +11,7 @@ using AngleSharp.Html.Dom;
 using AngleSharp.Html.Parser;
 using Microsoft.AspNetCore.Html;
 
-// this is not necessary at runtime, but at the time of writing 
+// this should not necessary at runtime, but at the time of writing 
 // the intellisense doesn't recognize the methods without it
 using Microsoft.DotNet.Interactive.Formatting;
 using static Microsoft.DotNet.Interactive.Formatting.PocketViewTags;
@@ -41,6 +41,8 @@ class Problem {
     public Part? Part1 { get; private set; }
     public Part? Part2 { get; private set; }
 
+    public string Input => _input ?? throw new InvalidOperationException("Problem has not been loaded yet");
+
     private readonly HttpClient _httpClient;
     private string? _input;
 
@@ -53,7 +55,7 @@ class Problem {
         _httpClient.DefaultRequestHeaders.Add("Cookie", $"session={Environment.GetEnvironmentVariable("AOC_SESSION_COOKIE")}");
     }
 
-    public async Task<IHtmlContent> Load() {
+    public async Task Load() {
         var problemReleaseDate = new DateTime(Year, 12, Day, 5, 0, 0, DateTimeKind.Utc);
         var wait = problemReleaseDate - DateTime.UtcNow;
         if (wait.TotalSeconds > 3) {
@@ -62,10 +64,11 @@ class Problem {
             if (wait.TotalHours > 1) waitString += $"{wait:%h} hours, ";
             if (wait.TotalMinutes > 1) waitString += $"{wait:%m} minutes, ";
             if (wait.TotalSeconds > 1) waitString += $"{wait:%s} seconds";
-            return div(
+            display(div(
                 h2($"{Year} day {Day}"),
-                p($"This problem is available in {waitString}")
-            );
+                p($"This problem will be available in {waitString}")
+            ));
+            return;
         }
         if (wait.TotalSeconds > 0) await Task.Delay(wait);
 
@@ -78,33 +81,37 @@ class Problem {
         var yellowStar = "⭐";
         var greyStar = "☆";
         var stars = (Part1?.Answer != null ? yellowStar : greyStar) + (Part2?.Answer != null ? yellowStar : greyStar);
-        return div(
+        display(div(
             h2($"{Year} day {Day} ", stars),
             h3(Part1!.Title),
             Part1.Answer == null ? p("Not answered yet") : p("Answer: ", code(Part1.Answer)),
             h3(Part2?.Title ?? "--- Part 2 ---"),
             Part2?.Answer == null ? p("Not answered yet") : p("Answer: ", code(Part2.Answer))
-        );
+        ));
     }
 
-    public IHtmlContent ShowPart1() {
+    public void ShowPart1() {
         if (Part1 == null) {
-            return h3("Part 1 is not available yet");
+            display(h3("Part 1 is not available yet"));
         } 
-        return ShowPart(Part1!);
+        else {
+            ShowPart(Part1!);
+        }
     }
 
-    public IHtmlContent ShowPart2() {
+    public void ShowPart2() {
         if (Part2 == null) {
-            return h3("Part 2 is not available yet");
+            display(h3("Part 2 is not available yet"));
         } 
-        return ShowPart(Part2!);
+        else {
+            ShowPart(Part2!);
+        } 
     }
 
-    private IHtmlContent ShowPart(Part part) {
+    private void ShowPart(Part part) {
         var which = part == Part1 ? "Part1" : "Part2";
         if (part!.ExampleAnswer != null && part.ExampleInput != null) {
-            return div(
+            display(div(
                 part.Description,
                 hr(),
                 dl(
@@ -115,42 +122,46 @@ class Problem {
                     dt($"problem.{which}.ExampleAnswer ", em[style:"opacity:0.6"]("if this is incorrect you can assign a new value or null to skip it")),
                     dd(pre(code(part.ExampleAnswer)))
                 )
-            );
+            ));
         }
         else {
-            return part!.Description;
+            display(part!.Description);
         }
     }
 
-    public async Task<IHtmlContent> VerifyPart1<TAnswer>(Func<string, TAnswer> solution) {
+    public async Task<bool?> VerifyPart1<TAnswer>(Func<string, TAnswer> solution) {
         if (Part1 == null) {
-            return h3("Part 1 is not available yet");
-        } 
-        return VerifyExample(Part1!, solution)
-            ?? VerifyStoredAnswer(Part1!, solution)
-            ?? await SubmitAnswer(Part1!, solution);
+            display(h3("Part 1 is not available yet"));
+            return null;
+        } else {
+            return VerifyExample(Part1!, solution)
+                ?? VerifyStoredAnswer(Part1!, solution)
+                ?? await SubmitAnswer(Part1!, solution);
+        }
     }
 
-    public async Task<IHtmlContent> VerifyPart2<TAnswer>(Func<string, TAnswer> solution) {
+    public async Task<bool?> VerifyPart2<TAnswer>(Func<string, TAnswer> solution) {
         if (Part2 == null) {
-            return h3("Part 2 is not available yet");
-        } 
-        return VerifyExample(Part2!, solution)
-            ?? VerifyStoredAnswer(Part2!, solution)
-            ?? await SubmitAnswer(Part2!, solution);
+            display(h3("Part 2 is not available yet"));
+            return null;
+        } else {
+            return VerifyExample(Part2!, solution)
+                ?? VerifyStoredAnswer(Part2!, solution)
+                ?? await SubmitAnswer(Part2!, solution);
+        }
     }
 
-    private IHtmlContent? VerifyExample<TAnswer>(Part part, Func<string, TAnswer> solution) {
+    private bool? VerifyExample<TAnswer>(Part part, Func<string, TAnswer> solution) {
         if (part!.ExampleAnswer != null && part.ExampleInput != null) {
             var answer = solution(part.ExampleInput)!.ToString();
-            if (answer != part.ExampleAnswer) {
-                return WrongAnswer("example", answer, part.ExampleAnswer!);
+            if (!AnswerExplanation("example", answer, part.ExampleAnswer)) {
+                return false;
             }
         }
         return null;
     }
 
-    private IHtmlContent? VerifyStoredAnswer<TAnswer>(Part part, Func<string, TAnswer> solution) {
+    private bool? VerifyStoredAnswer<TAnswer>(Part part, Func<string, TAnswer> solution) {
         if (part!.Answer != null) {
             var answer = solution(_input!)!.ToString();
             return AnswerExplanation("locally stored answer", answer, part.Answer);
@@ -158,35 +169,29 @@ class Problem {
         return null;
     }
 
-    private async Task<IHtmlContent> SubmitAnswer<TAnswer>(Part part, Func<string, TAnswer> solution) {
+    private async Task<bool> SubmitAnswer<TAnswer>(Part part, Func<string, TAnswer> solution) {
         var answer = solution(_input!)!.ToString();
         await SubmitAnswer(1, answer!);
         return AnswerExplanation("aoc website", answer, part.Answer!);
     }
 
-    private IHtmlContent AnswerExplanation(string phase, string? yourAnswer, string correctAnswer) {
-        if (yourAnswer != correctAnswer) {
-            return WrongAnswer(phase, yourAnswer, correctAnswer);
-        }
-        else {
-            return div(
-                h3("Correct Answer according to the ", em(phase)),
-                p("Congratulations!")
-            );
-        }
-    }
-
-    private IHtmlContent WrongAnswer(string phase, string? yourAnswer, string correctAnswer) {
-        return div(
-            h3("Wrong Answer"),
-            p("Your answer was: ", code(yourAnswer)),
-            p("The ", em(phase), " answer is: ", code(correctAnswer))
-        );
+    private bool AnswerExplanation(string phase, string? yourAnswer, string correctAnswer) {
+        var tickMark = "\u2713";
+        var crossMark = "\u2717";
+        display(p(
+            "Testing your answer against the ", 
+            em(phase), 
+            ": ",
+            yourAnswer == correctAnswer 
+                ? strong[style:"color:green"](tickMark + " OK") 
+                : strong[style:"color:red"](crossMark + " FAILED")
+        ));
+        return yourAnswer == correctAnswer;
     }
 
     private async Task<List<Part>> ReadProblem(bool force = false) {
         var folder = "Problems";
-        var filename = $"{Year}-{Day}.html";
+        var filename = $"{Year}-{Day:00}.html";
         var fullPath = Path.Combine(folder, filename);
         if (!Path.Exists(folder)) Directory.CreateDirectory(folder);
         if (!force && File.Exists(fullPath)) {
@@ -199,7 +204,7 @@ class Problem {
 
     private async Task<string> ReadInput() {
         var folder = "Problems";
-        var filename = $"{Year}-{Day}.txt";
+        var filename = $"{Year}-{Day:00}.txt";
         var fullPath = Path.Combine(folder, filename);
         if (!Path.Exists(folder)) Directory.CreateDirectory(folder);
         if (File.Exists(fullPath)) {
