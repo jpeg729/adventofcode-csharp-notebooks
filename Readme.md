@@ -1,5 +1,9 @@
 # My setup for Advent of code problems
 
+A simple setup using Polyglot Notebooks in VSCode.
+
+The provided Api can read the problem and the input data from the website, and submit the response. It should be usable by leaderboard chasers. (Please test it well first in order to understand how it works and any shortcomings it may have.)
+
 ## Getting started
 
 1. Add an environment variable called AOC_SESSION_COOKIE containing your adventofcode session cookie.
@@ -19,6 +23,11 @@
 
 ### Then we initialise and load the problem. 
 
+```csharp
+var problem = new Problem(2022,8);
+await problem.Load();
+```
+
 This downloads the problem description and input from adventofcode.com
 and stores local copies in the Problems folder.
 
@@ -26,12 +35,7 @@ and stores local copies in the Problems folder.
 
 **N.B.** If you switch your access token for one from another account, you will need to delete the file `Problems/{year}-{day}.txt` in order to download the correct input for the new account.
 
-If the problem is not yet available, the server is not contacted in order to avoid spamming it. If there are only a few seconds left, the `Load` method will block and download the files as soon as it is available.
-
-```csharp
-var problem = new Problem(2022,8);
-await problem.Load();
-```
+If the problem is not yet available, the server is not contacted in order to avoid spamming it. If there are only a few minutes left, the `Load` method will count down and download the files as soon as it is available.
 
 * `problem.Input` gives access to the full input
 * `problem.Part1` gives access the first part
@@ -41,13 +45,20 @@ await problem.Load();
 
 ### Then we display the first part. 
 
-If the example data and answer are easily identifiable in the text, they are shown separately.
-
 ```csharp
 problem.ShowPart1();
 ```
 
+If the example data and answer are easily identifiable in the text, they are shown separately.
+
 ### Then we implement and submit the code for the first part.
+
+```csharp
+int Part1(string input) {
+    return -1;
+};
+await problem.VerifyPart1(Part1);
+```
 
 The call to VerifyPart1 does the following in order:
 
@@ -56,13 +67,6 @@ The call to VerifyPart1 does the following in order:
 3. If the html summary does not mention any previously submitted answers, it submits the result of your code, and downloads the summary again.
 
 **N.B.** Part1 does not have to return an int, anything with a ToString method will work.
-
-```csharp
-int Part1(string input) {
-    return -1;
-};
-await problem.VerifyPart1(Part1);
-```
 
 ### Then we can proceed to part 2.
 
