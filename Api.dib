@@ -10,6 +10,7 @@ using AngleSharp.Dom;
 using AngleSharp.Html.Dom;
 using AngleSharp.Html.Parser;
 using Microsoft.AspNetCore.Html;
+using Microsoft.DotNet.Interactive;
 
 // this should not necessary at runtime, but at the time of writing 
 // the intellisense doesn't recognize the methods without it
@@ -58,19 +59,27 @@ class Problem {
     public async Task Load() {
         var problemReleaseDate = new DateTime(Year, 12, Day, 5, 0, 0, DateTimeKind.Utc);
         var wait = problemReleaseDate - DateTime.UtcNow;
-        if (wait.TotalSeconds > 3) {
+        DisplayedValue output = display(wait);
+        while (wait.TotalSeconds > 1) {
             var waitString = "";
             if (wait.TotalDays > 1) waitString = $"{wait:%d} days, ";
             if (wait.TotalHours > 1) waitString += $"{wait:%h} hours, ";
             if (wait.TotalMinutes > 1) waitString += $"{wait:%m} minutes, ";
             if (wait.TotalSeconds > 1) waitString += $"{wait:%s} seconds";
-            display(div(
+            var displayValue = div(
                 h2($"{Year} day {Day}"),
                 p($"This problem will be available in {waitString}")
-            ));
-            return;
+            );
+            if (output == null) {
+                output = display(displayValue);
+            } else {
+                output.Update(displayValue);
+            }
+            if (wait.TotalMinutes > 10) return;
+            await Task.Delay(1);
+            wait = problemReleaseDate - DateTime.UtcNow;
         }
-        if (wait.TotalSeconds > 0) await Task.Delay(wait);
+        if (wait.TotalMilliseconds > 0) await Task.Delay(wait);
 
         var parts = await ReadProblem();
         Part1 = parts[0];
@@ -81,13 +90,18 @@ class Problem {
         var yellowStar = "⭐";
         var greyStar = "☆";
         var stars = (Part1?.Answer != null ? yellowStar : greyStar) + (Part2?.Answer != null ? yellowStar : greyStar);
-        display(div(
+        var summary = div(
             h2($"{Year} day {Day} ", stars),
             h3(Part1!.Title),
             Part1.Answer == null ? p("Not answered yet") : p("Answer: ", code(Part1.Answer)),
             h3(Part2?.Title ?? "--- Part 2 ---"),
             Part2?.Answer == null ? p("Not answered yet") : p("Answer: ", code(Part2.Answer))
-        ));
+        );
+        if (output == null) {
+            output = display(summary);
+        } else {
+            output.Update(summary);
+        }
     }
 
     public void ShowPart1() {
