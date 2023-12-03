@@ -53,7 +53,9 @@ If the example data and answer are easily identifiable in the text, they are sho
 ### Then implement and submit the code for the first part
 
 ```csharp
+// you can add additional functions here
 int Part1(string input) {
+    // your code goes here
     return -1;
 };
 await problem.VerifyPart1(Part1);
@@ -75,10 +77,12 @@ The call to VerifyPart1 does the following:
 problem.ShowPart2();
 ```
 
-### And submit 
+### Implement and submit 
 
 ```csharp
+// you can add additional functions here
 int Part2(string input) {
+    // your code goes here
     return -1;
 }
 await problem.VerifyPart2(Part2);
