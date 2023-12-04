@@ -185,8 +185,12 @@ class Problem {
 
     private async Task<bool> SubmitAnswer<TAnswer>(Part part, Func<string, TAnswer> solution) {
         var answer = solution(_input!)!.ToString();
-        await SubmitAnswer(1, answer!);
-        return AnswerExplanation("aoc website", answer, part.Answer!);
+        var responseContent = await SubmitAnswer(1, answer!);
+        var isRightAnswer = AnswerExplanation("aoc website", answer, part.Answer!);
+        if (responseContent != null) {
+            display(responseContent);
+        }
+        return isRightAnswer;
     }
 
     private bool AnswerExplanation(string phase, string? yourAnswer, string correctAnswer) {
@@ -198,7 +202,8 @@ class Problem {
             ": ",
             yourAnswer == correctAnswer 
                 ? strong[style:"color:green"](tickMark + " OK") 
-                : strong[style:"color:red"](crossMark + " FAILED")
+                : strong[style:"color:red"](crossMark + " FAILED"),
+            yourAnswer == correctAnswer ? "" : span(" (received ", code(yourAnswer), ", expected ", code(correctAnswer), ")")
         ));
         return yourAnswer == correctAnswer;
     }
@@ -230,22 +235,30 @@ class Problem {
         return data;
     }
 
-    private async Task SubmitAnswer(int part, string answer) {
-        var requestContent = new StringContent($"level={part}&answer={answer}");
+    private async Task<IHtmlContent?> SubmitAnswer(int part, string answer) {
+        // display(p("Not Submitting answer..."));
+        var requestContent = new FormUrlEncodedContent(new[] {
+            new KeyValuePair<string, string>("level", part.ToString()),
+            new KeyValuePair<string, string>("answer", answer),
+        });
         var response = await _httpClient.PostAsync($"{Year}/day/{Day}/answer", requestContent);
+        response.EnsureSuccessStatusCode();
         var content = await response.Content.ReadAsStringAsync();
         
-        var parser = new HtmlParser();
-        var document = await parser.ParseDocumentAsync(content);
-        var article = document.QuerySelector("article");
-        display(HTML(article?.OuterHtml));
-
         var parts = await ReadProblem(force:true);
         Part1!.Update(parts[0]);
         if (parts.Count > 1) {
             if (Part2 != null) Part2.Update(parts[1]);
             else Part2 = parts[1];
         } 
+
+        var parser = new HtmlParser();
+        var document = await parser.ParseDocumentAsync(content);
+        var article = document.QuerySelector("article:not(.day-desc)");
+        if (article is IElement explanation) {
+            return HTML(explanation.OuterHtml);
+        }
+        return null;
     }
 
     private async Task<List<Part>> ParseProblem(string content) {
@@ -261,12 +274,12 @@ class Problem {
             // The answer node seems to always be a <p> tag immediately following the <article> tag
             // It contains a <code> tag with the answer
             var answerNode = article.NextSibling; 
-            while (answerNode != null 
-                && answerNode.NodeName == "#text"
-            ) {
-                answerNode = answerNode.NextSibling as IElement;
+            while (answerNode?.NodeName == "#text") {
+                answerNode = answerNode.NextSibling;
             }
-            var answer = (answerNode as IElement)?.QuerySelector("code")?.TextContent;
+            var answer = answerNode?.NodeName == "P" 
+                ? (answerNode as IElement)?.QuerySelector("code")?.TextContent 
+                : null;
             
             parts.Add(new Part {
                 Answer = answer, 
