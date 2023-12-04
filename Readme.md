@@ -4,8 +4,6 @@ A simple setup using Polyglot Notebooks in VSCode.
 
 The provided Api can read the problem and the input data from the website, and submit the response. It should be usable by leaderboard chasers. (Please test it well first in order to understand how it works and any shortcomings it may have.)
 
-***Caveat: Answer submission currently doesn't work!!!***
-
 ## Getting started
 
 1. Add an environment variable called AOC_SESSION_COOKIE containing your Advent of Code session cookie.

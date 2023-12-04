@@ -185,7 +185,8 @@ class Problem {
 
     private async Task<bool> SubmitAnswer<TAnswer>(Part part, Func<string, TAnswer> solution) {
         var answer = solution(_input!)!.ToString();
-        var responseContent = await SubmitAnswer(1, answer!);
+        var level = part == Part1 ? 1 : 2;
+        var responseContent = await SubmitAnswer(level, answer!);
         var isRightAnswer = AnswerExplanation("aoc website", answer, part.Answer!);
         if (responseContent != null) {
             display(responseContent);
